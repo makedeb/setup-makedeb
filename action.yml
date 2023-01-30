@@ -1,0 +1,53 @@
+name: "Set up makedeb APT repositories"
+description: "Set up makedeb's APT repositories to install packages with"
+author: "makedeb Development Team"
+inputs:
+  release:
+    description: "The release of makedeb to install, one of 'stable', 'beta', or 'alpha'."
+    required: true
+    default: "stable"
+  makedeb-repo:
+    description: "Whether to set up the makedeb APT repository."
+    required: true
+    default: true
+  pbmpr-repo:
+    description: "Wheter to set up the Prebuilt-MPR APT repository."
+    required: true
+    default: false
+runs:
+  using: "composite"
+  steps:
+    - if: runner.os != 'Linux'
+      shell: bash
+      run: |
+        echo "This action can only run on Linux-based runners."
+        exit 1
+    - if: inputs.release != 'stable' && inputs.release != 'beta' && inputs.release != 'alpha'
+      shell: bash
+      run: |
+        echo "Invalid makedeb release specified: '${{ inputs.release }}'."
+        exit 1
+    - name: Set up makedeb APT repository
+      if: inputs.makedeb-repo
+      shell: bash
+      run: |
+        wget -qO - 'https://proget.makedeb.org/debian-feeds/makedeb.pub' | gpg --dearmor | sudo tee /usr/share/keyrings/makedeb-archive-keyring.gpg 1> /dev/null
+        echo 'deb [signed-by=/usr/share/keyrings/makedeb-archive-keyring.gpg arch=all] https://proget.makedeb.org/ makedeb main' | sudo tee /etc/apt/sources.list.d/makedeb.list
+    - name: Set up Prebuilt-MPR APT repository
+      if: inputs.pbmpr-repo
+      shell: bash
+      run: |
+        wget -qO - 'https://proget.makedeb.org/debian-feeds/prebuilt-mpr.pub' | gpg --dearmor | sudo tee /usr/share/keyrings/prebuilt-mpr-archive-keyring.gpg 1> /dev/null
+        echo "deb [signed-by=/usr/share/keyrings/prebuilt-mpr-archive-keyring.gpg] https://proget.makedeb.org prebuilt-mpr $(lsb_release -cs)" | sudo tee /etc/apt/sources.list.d/prebuilt-mpr.list
+    - name: Refresh APT cache
+      shell: bash
+      run: sudo apt-get update
+    - name: Install makedeb
+      if: inputs.makedeb-repo
+      shell: bash
+      run: |
+        if [[ "${{ inputs.release }}" == 'stable' ]]; then
+          sudo apt-get install makedeb -y
+        else
+          sudo apt-get install "makedeb-${{ inputs.release }}" -y
+        fi
