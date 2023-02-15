@@ -27,6 +27,18 @@ runs:
       run: |
         echo "Invalid makedeb release specified: '${{ inputs.release }}'."
         exit 1
+    - name: Ensure prerequisites are installed
+      shell: bash
+      run: |
+        packages=('wget' 'gpg' 'lsb-release')
+
+        if [[ "${UID}" == 0 ]]; then
+          apt-get update
+          apt-get install "${packages[@]}" sudo -y
+        else
+          sudo apt-get update
+          sudo apt-get install "${packages[@]}" -y
+        fi
     - name: Set up makedeb APT repository
       if: inputs.makedeb-repo
       shell: bash
